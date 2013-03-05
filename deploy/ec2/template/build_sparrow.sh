@@ -23,6 +23,12 @@ cd /tmp/
 
 if [ ! -d "sparrow" ]; then
   git clone git://github.com/radlab/sparrow.git -b {{git_branch}}
+else
+  # Checkout the latest version.
+  cd /tmp/sparrow/
+  git pull origin
+  git checkout origin/{{git_branch}}
+  cd /tmp/
 fi;
 
 
@@ -35,9 +41,7 @@ if [ ! -d "shark" ]; then
 fi;
 
 cd sparrow
-if [ ! -e "/tmp/sparrow/target/sparrow-1.0-SNAPSHOT.jar" ]; then
-  mvn package -Dmaven.test.skip=true
-fi
+mvn package -Dmaven.test.skip=true
 cp /tmp/sparrow/target/sparrow-1.0-SNAPSHOT.jar $SPARROW_INSTALL_DIR
 
 cd /tmp/spark
