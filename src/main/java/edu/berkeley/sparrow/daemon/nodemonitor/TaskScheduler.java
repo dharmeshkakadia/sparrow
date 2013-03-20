@@ -119,7 +119,7 @@ public abstract class TaskScheduler {
   void tasksFinished(List<TFullTaskId> finishedTasks) {
     for (TFullTaskId t : finishedTasks) {
       AUDIT_LOG.info(Logging.auditEventString("task_completed", t.getRequestId(), t.getTaskId()));
-      taskCompleted(t.getRequestId(), t.getRequestId(), t.getTaskId());
+      taskCompleted(t.getRequestId(), t.getRequestId(), t.getTaskId(), null);
     }
   }
 
@@ -129,7 +129,7 @@ public abstract class TaskScheduler {
                                             taskReservation.previousRequestId,
                                             taskReservation.previousTaskId));
     taskCompleted(taskReservation.requestId, taskReservation.previousRequestId,
-                  taskReservation.previousTaskId);
+                  taskReservation.previousTaskId, taskReservation.user);
   }
 
   /**
@@ -139,9 +139,12 @@ public abstract class TaskScheduler {
    * because all tasks for the job had been executed). Used to determine how long it takes the node
    * monitor to launch a task from the queue. Empty strings indicate that the task was launched
    * directly from the queue (so there was no immediately prevoius task).
+   *
+   * @param preferredUser TODO
    */
   private synchronized void taskCompleted(String requestId, String lastExecutedTaskRequestId,
-                                          String lastExecutedTaskId) {
+                                          String lastExecutedTaskId,
+                                          TUserGroupInfo preferredUser) {
     LOG.debug(Logging.functionCall(requestId));
     ResourceInfo resourceInfo = resourcesPerRequest.get(requestId);
     if (resourceInfo == null) {
@@ -154,7 +157,7 @@ public abstract class TaskScheduler {
       resourcesPerRequest.remove(requestId);
     }
     freeResourceInUse(resourceInfo.resources);
-    handleTaskCompleted(requestId, lastExecutedTaskRequestId, lastExecutedTaskId);
+    handleTaskCompleted(requestId, lastExecutedTaskRequestId, lastExecutedTaskId, preferredUser);
   }
 
   protected void makeTaskRunnable(TaskSpec task) {
@@ -199,9 +202,11 @@ public abstract class TaskScheduler {
 
   /**
    * Signal that a given task has completed.
+   * @param preferredUser TODO
    */
   protected abstract void handleTaskCompleted(String requestId, String lastExecutedTaskRequestId,
-                                              String lastExecutedTaskId);
+                                              String lastExecutedTaskId,
+                                              TUserGroupInfo preferredUser);
 
   /**
    * Returns the maximum number of active tasks allowed (the number of slots).

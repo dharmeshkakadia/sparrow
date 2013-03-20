@@ -9,13 +9,14 @@ import org.apache.log4j.Logger;
 
 import com.google.common.collect.Maps;
 
+import edu.berkeley.sparrow.thrift.TUserGroupInfo;
+
 /**
  * A {@link TaskScheduler} which round-robins requests over per-user queues.
  *
  * When a user is allocated a "slot", this scheduler attempts to fetch a task for the next
- * queued reservation.  If a task for the given reservation is not available, the user looses
- * that "slot."
- * TODO: The above functionality is probably not what we actually want. Fix this.
+ * queued reservation.  If a task for the given reservation is not available, the scheduler will
+ * try to launch anothe task for the same user.
  *
  * NOTE: This currently round-robins over users, rather than applications. Not sure
  * what we want here going forward.
@@ -78,9 +79,17 @@ public class RoundRobinTaskScheduler extends TaskScheduler {
 
   @Override
   protected synchronized void handleTaskCompleted(
-      String requestId, String lastExecutedTaskRequestId, String lastExecutedTaskId) {
+      String requestId, String lastExecutedTaskRequestId, String lastExecutedTaskId,
+      TUserGroupInfo preferredUser) {
     if (numQueuedReservations != 0) {
-      /* Scan through the list of apps (starting at currentIndex) and find the first
+      /* If preferredUser is set, first try to start a task for that user. */
+      if (preferredUser != null &&
+          maybeLaunchTaskForUser(lastExecutedTaskRequestId, lastExecutedTaskId, preferredUser.user)) {
+        // Don't update currentIndex!  Running another task for preferredUser should affect the
+        // round robin ordering.
+        return;
+      }
+      /* Scan through the list of users (starting at currentIndex) and find the first
        * one with a pending task. If we find a pending task, make that task runnable
        * and update the round robin index.
        *
@@ -90,21 +99,10 @@ public class RoundRobinTaskScheduler extends TaskScheduler {
        * but will not be the case if tasks take different amounts of resources. */
       for (int offset = 0; offset < users.size(); offset++) {
         String user = users.get((currentIndex + offset) % users.size());
-        Queue<TaskSpec> considering = userQueues.get(user);
-        TaskSpec nextTask = considering.poll();
-        if (nextTask != null) {
-          LOG.debug("Task for user " + user + ", request " + nextTask.requestId +
-                    " now runnable.");
-          nextTask.previousRequestId = lastExecutedTaskRequestId;
-          nextTask.previousTaskId = lastExecutedTaskId;
-          makeTaskRunnable(nextTask);
+        if (maybeLaunchTaskForUser(lastExecutedTaskRequestId, lastExecutedTaskId, user)) {
           currentIndex = (currentIndex + offset + 1) % users.size();
-          numQueuedReservations--;
-          /* Never remove users from the queue, because it will make currentIndex no longer right,
-           * and we don't expect user churn right now. */
           return;
         }
-        LOG.debug("Skipping user " + user + " that has no runnable tasks.");
       }
       String errorMessage = ("numQueuedReservations=" + numQueuedReservations +
                              " but no queued tasks found.");
@@ -113,6 +111,26 @@ public class RoundRobinTaskScheduler extends TaskScheduler {
       LOG.debug("No queued tasks, so not launching anything.");
       activeTasks -= 1;
     }
+  }
+
+  /** Returns true if a task was launched for the given user. */
+  private boolean maybeLaunchTaskForUser(String lastExecutedTaskRequestId,
+      String lastExecutedTaskId, String user) {
+    Queue<TaskSpec> considering = userQueues.get(user);
+    TaskSpec nextTask = considering.poll();
+    if (nextTask != null) {
+      LOG.debug("Task for user " + user + ", request " + nextTask.requestId +
+                " now runnable.");
+      nextTask.previousRequestId = lastExecutedTaskRequestId;
+      nextTask.previousTaskId = lastExecutedTaskId;
+      makeTaskRunnable(nextTask);
+      numQueuedReservations--;
+      /* Never remove users from the queue, because it will make currentIndex no longer right,
+       * and we don't expect user churn right now. */
+      return true;
+    }
+    LOG.debug("Skipping user " + user + " that has no runnable tasks.");
+    return false;
   }
 
   @Override

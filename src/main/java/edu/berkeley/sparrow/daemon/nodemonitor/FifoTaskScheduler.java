@@ -4,6 +4,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import org.apache.log4j.Logger;
 
+import edu.berkeley.sparrow.thrift.TUserGroupInfo;
+
 /**
  * This scheduler assumes that backends can execute a fixed number of tasks (equal to
  * the number of cores on the machine) and uses a FIFO queue to determine the order to launch
@@ -54,7 +56,7 @@ public class FifoTaskScheduler extends TaskScheduler {
 
   @Override
   synchronized protected void handleTaskCompleted(
-      String requestId, String lastExecutedTaskRequestId, String lastExecutedTaskId) {
+      String requestId, String lastExecutedTaskRequestId, String lastExecutedTaskId, TUserGroupInfo preferredUser) {
     TaskSpec reservation = taskReservations.poll();
     if (reservation != null) {
       reservation.previousRequestId = lastExecutedTaskRequestId;

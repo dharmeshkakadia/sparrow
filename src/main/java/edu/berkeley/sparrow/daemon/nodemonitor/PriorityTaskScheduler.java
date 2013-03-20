@@ -9,6 +9,8 @@ import org.apache.log4j.Logger;
 
 import com.google.common.collect.Maps;
 
+import edu.berkeley.sparrow.thrift.TUserGroupInfo;
+
 /**
  * A {@link TaskScheduler} which launches tasks in strict priority order.
  */
@@ -64,7 +66,7 @@ public class PriorityTaskScheduler extends TaskScheduler {
 
   @Override
   protected synchronized void handleTaskCompleted(
-      String requestId, String lastExecutedTaskRequestId, String lastExecutedTaskId) {
+      String requestId, String lastExecutedTaskRequestId, String lastExecutedTaskId, TUserGroupInfo preferredUser) {
     if (numQueuedReservations != 0) {
       // Launch a task for the lowest valued priority with queued tasks.
       for (Entry<Integer, Queue<TaskSpec>> entry : priorityQueues.entrySet()) {

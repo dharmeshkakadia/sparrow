@@ -1,5 +1,7 @@
 package edu.berkeley.sparrow.daemon.nodemonitor;
 
+import edu.berkeley.sparrow.thrift.TUserGroupInfo;
+
 
 
 /**
@@ -20,7 +22,7 @@ public class NoQueueTaskScheduler extends TaskScheduler {
 
   @Override
   protected void handleTaskCompleted(String requestId, String lastExecutedTaskRequestId,
-                                     String lastExecutedTaskId) {
+                                     String lastExecutedTaskId, TUserGroupInfo preferredUser) {
     // Do nothing
   }
 
