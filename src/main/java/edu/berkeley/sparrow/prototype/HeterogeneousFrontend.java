@@ -280,7 +280,11 @@ public class HeterogeneousFrontend implements FrontendService.Iface {
     //Random r = new Random();
     double mostRecentLaunch = System.currentTimeMillis();
     long end = System.currentTimeMillis() + launch_duration_s * 1000;
-    int userIndex = 0; // Used to determine which user's task to run next.
+    Random r = new Random();
+    // Used to determine which user's task to run next. Start from a random place so
+    // all of the frontends don't end up synchronized.
+    int userIndex = r.nextInt(UserInfo.totalWeight);
+    LOG.debug("Starting with user index " + userIndex);
     while (System.currentTimeMillis() < end) {
       // Lambda is the arrival rate in S, so we need to multiply the result here by
       // 1000 to convert to ms.
